@@ -91,7 +91,7 @@ vim.g.mapleader = ' '
 vim.g.maplocalleader = ' '
 
 -- Set to true if you have a Nerd Font installed and selected in the terminal
-vim.g.have_nerd_font = false
+vim.g.have_nerd_font = true
 
 -- [[ Setting options ]]
 -- See `:help vim.opt`
@@ -102,7 +102,7 @@ vim.g.have_nerd_font = false
 vim.opt.number = true
 -- You can also add relative line numbers, to help with jumping.
 --  Experiment for yourself to see if you like it!
--- vim.opt.relativenumber = true
+vim.opt.relativenumber = true
 
 -- Enable mouse mode, can be useful for resizing splits for example!
 vim.opt.mouse = 'a'
@@ -117,6 +117,12 @@ vim.opt.clipboard = 'unnamedplus'
 
 -- Enable break indent
 vim.opt.breakindent = true
+
+vim.opt.autoindent = true
+vim.opt.smartindent = true
+vim.opt.tabstop = 4
+vim.opt.shiftwidth = 4
+vim.opt.expandtab = true
 
 -- Save undo history
 vim.opt.undofile = true
@@ -225,6 +231,9 @@ vim.opt.rtp:prepend(lazypath)
 --
 -- NOTE: Here is where you install your plugins.
 require('lazy').setup({
+  -- Add Jai syntax highlighting by Raphael Luba
+  'rluba/jai.vim',
+
   -- NOTE: Plugins can be added with a link (or for a github repo: 'owner/repo' link).
   'tpope/vim-sleuth', -- Detect tabstop and shiftwidth automatically
 
@@ -353,11 +362,14 @@ require('lazy').setup({
         -- You can put your default mappings / updates / etc. in here
         --  All the info you're looking for is in `:help telescope.setup()`
         --
-        -- defaults = {
-        --   mappings = {
-        --     i = { ['<c-enter>'] = 'to_fuzzy_refine' },
-        --   },
-        -- },
+        defaults = {
+          -- mappings = {
+          -- i = { ['<c-enter>'] = 'to_fuzzy_refine' },
+          -- },
+          path_display = {
+            'truncate',
+          },
+        },
         -- pickers = {}
         extensions = {
           ['ui-select'] = {
@@ -567,7 +579,7 @@ require('lazy').setup({
       local servers = {
         -- clangd = {},
         -- gopls = {},
-        -- pyright = {},
+        pyright = {},
         -- rust_analyzer = {},
         -- ... etc. See `:help lspconfig-all` for a list of all the pre-configured LSPs
         --
@@ -577,6 +589,11 @@ require('lazy').setup({
         -- But for many setups, the LSP (`tsserver`) will work just fine
         -- tsserver = {},
         --
+
+        -- jails = {
+        --   cmd = { "D:/dev/tools/jai/jails/bin/jails.exe" },
+        --   filetypes = { 'jai' },
+        -- },
 
         lua_ls = {
           -- cmd = {...},
@@ -593,6 +610,22 @@ require('lazy').setup({
           },
         },
       }
+
+      local lspconfig = require 'lspconfig'
+
+      local configs = require 'lspconfig.configs'
+      if not configs.jai then
+        configs.jai = {
+          default_config = {
+            cmd = { 'D:/dev/tools/jai/jails/bin/jails.exe' },
+            filetypes = { 'jai' },
+            root_dir = lspconfig.util.root_pattern '.git' or vim.loop.os_homedir(),
+            settings = {},
+          },
+        }
+      end
+
+      lspconfig.jai.setup {}
 
       -- Ensure the servers and tools above are installed
       --  To check the current status of installed tools and/or manually install
@@ -773,26 +806,51 @@ require('lazy').setup({
     end,
   },
 
-  { -- You can easily change to a different colorscheme.
-    -- Change the name of the colorscheme plugin below, and then
-    -- change the command in the config to whatever the name of that colorscheme is.
-    --
-    -- If you want to see what colorschemes are already installed, you can use `:Telescope colorscheme`.
-    'folke/tokyonight.nvim',
-    priority = 1000, -- Make sure to load this before all the other start plugins.
-    init = function()
-      -- Load the colorscheme here.
-      -- Like many other themes, this one has different styles, and you could load
-      -- any other, such as 'tokyonight-storm', 'tokyonight-moon', or 'tokyonight-day'.
-      vim.cmd.colorscheme 'tokyonight-night'
+  {
+    'rmagatti/auto-session',
+    lazy = false,
+    dependencies = {
+      'nvim-telescope/telescope.nvim', -- Only needed if you want to use sesssion lens
+    },
+    config = function()
+      require('auto-session').setup {
+        auto_session_suppress_dirs = { '~/', '~/Projects', '~/Downloads', '/' },
+      }
+    end,
+  },
 
-      -- You can configure highlights by doing something like:
-      vim.cmd.hi 'Comment gui=none'
+  -- { -- You can easily change to a different colorscheme.
+  --   -- Change the name of the colorscheme plugin below, and then
+  --   -- change the command in the config to whatever the name of that colorscheme is.
+  --   --
+  --   -- If you want to see what colorschemes are already installed, you can use `:Telescope colorscheme`.
+  --   'folke/tokyonight.nvim',
+  --   priority = 1000, -- Make sure to load this before all the other start plugins.
+  --   init = function()
+  --     -- Load the colorscheme here.
+  --     -- Like many other themes, this one has different styles, and you could load
+  --     -- any other, such as 'tokyonight-storm', 'tokyonight-moon', or 'tokyonight-day'.
+  --     vim.cmd.colorscheme 'tokyonight-night'
+
+  --     -- You can configure highlights by doing something like:
+  --     vim.cmd.hi 'Comment gui=none'
+  --   end,
+  -- },
+
+  {
+    'maxmx03/solarized.nvim',
+    lazy = false,
+    priority = 1000,
+    config = function()
+      vim.o.background = 'dark' -- or 'light'
+      vim.cmd.colorscheme 'solarized'
     end,
   },
 
   -- Highlight todo, notes, etc in comments
   { 'folke/todo-comments.nvim', event = 'VimEnter', dependencies = { 'nvim-lua/plenary.nvim' }, opts = { signs = false } },
+
+  { 'ThePrimeagen/vim-be-good' },
 
   { -- Collection of various small independent plugins/modules
     'echasnovski/mini.nvim',
@@ -835,7 +893,7 @@ require('lazy').setup({
     'nvim-treesitter/nvim-treesitter',
     build = ':TSUpdate',
     opts = {
-      ensure_installed = { 'bash', 'c', 'diff', 'html', 'lua', 'luadoc', 'markdown', 'vim', 'vimdoc' },
+      ensure_installed = { 'bash', 'c', 'diff', 'html', 'lua', 'luadoc', 'markdown', 'vim', 'vimdoc', 'glsl' },
       -- Autoinstall languages that are not installed
       auto_install = true,
       highlight = {
@@ -843,9 +901,9 @@ require('lazy').setup({
         -- Some languages depend on vim's regex highlighting system (such as Ruby) for indent rules.
         --  If you are experiencing weird indenting issues, add the language to
         --  the list of additional_vim_regex_highlighting and disabled languages for indent.
-        additional_vim_regex_highlighting = { 'ruby' },
+        additional_vim_regex_highlighting = {},
       },
-      indent = { enable = true, disable = { 'ruby' } },
+      indent = { enable = true, disable = {} },
     },
     config = function(_, opts)
       -- [[ Configure Treesitter ]] See `:help nvim-treesitter`
@@ -861,6 +919,20 @@ require('lazy').setup({
       --    - Incremental selection: Included, see `:help nvim-treesitter-incremental-selection-mod`
       --    - Show your current context: https://github.com/nvim-treesitter/nvim-treesitter-context
       --    - Treesitter + textobjects: https://github.com/nvim-treesitter/nvim-treesitter-textobjects
+    end,
+  },
+  {
+    { 'akinsho/toggleterm.nvim', version = '*', config = true },
+  },
+  {
+    'stevearc/oil.nvim',
+    opts = {},
+    -- Optional dependencies
+    dependencies = { { 'echasnovski/mini.icons', opts = {} } },
+    -- dependencies = { "nvim-tree/nvim-web-devicons" }, -- use if prefer nvim-web-devicons
+    config = function()
+      vim.keymap.set('n', '-', '<CMD>Oil<CR>', { desc = 'Open parent directory' })
+      require('oil').setup()
     end,
   },
 
@@ -908,5 +980,72 @@ require('lazy').setup({
   },
 })
 
+vim.cmd [[
+  augroup filetypedetect
+    au! BufRead,BufNewFile *.vert set filetype=glsl
+    au! BufRead,BufNewFile *.frag set filetype=glsl
+  augroup END
+]]
+
 -- The line beneath this is called `modeline`. See `:help modeline`
 -- vim: ts=2 sts=2 sw=2 et
+
+local function build_project()
+  -- The path to your Python script
+  local script_path = './build_and_run.py'
+
+  -- Execute the Python script
+  local result = vim.fn.system('python ' .. script_path)
+
+  -- Check for errors
+  if vim.v.shell_error ~= 0 then
+    vim.api.nvim_err_writeln('Build failed: ' .. result)
+  else
+    vim.api.nvim_out_write('Build successful: ' .. result .. '\n')
+  end
+end
+
+-- Create a custom command that calls the build_project function
+vim.api.nvim_create_user_command('BuildProject', build_project, { nargs = 0 })
+
+-- Create a keybinding to call the custom command
+-- <leader>b will be the keybinding (default leader key is '\')
+vim.api.nvim_set_keymap('n', '<leader>b', ':BuildProject<CR>', { noremap = true, silent = true })
+
+-- Define the custom function to execute the jai command with the current file name
+local function run_jai_with_autorun()
+  vim.cmd 'w'
+  -- Get the current file name
+  local current_file = vim.fn.expand '%'
+  -- Construct the command
+  local command = 'jai ' .. current_file .. ' -plug Autorun'
+  -- Execute the command in a terminal
+  vim.cmd('terminal ' .. command)
+end
+
+-- Create a custom command that calls the build_project function
+vim.api.nvim_create_user_command('JaiAutorunCurrentFile', run_jai_with_autorun, { nargs = 0 })
+
+vim.api.nvim_set_keymap('n', '<leader>j', ':JaiAutorunCurrentFile<CR>', { noremap = true, silent = true })
+
+_G.close_buffer = function()
+  local buf = vim.api.nvim_get_current_buf()
+  vim.api.nvim_buf_delete(buf, { force = true })
+end
+
+vim.api.nvim_set_keymap('n', '<leader>.', ':lua _G.close_buffer()<CR>', { noremap = true, silent = true })
+
+-- Function to prompt for input and insert the print statement
+function _G.insert_print_statement()
+  -- Prompt the user for input
+  local input = vim.fn.input("Enter input: ")
+
+  -- Construct the print statement with the provided input
+  local print_statement = string.format('print("%s: %%\\n", %s);', input, input)
+
+  -- Insert the print statement at the current cursor position
+  vim.api.nvim_put({ print_statement }, 'l', true, true)
+end
+
+-- Map the function to <leader>p
+vim.api.nvim_set_keymap('n', '<leader>p', ':lua insert_print_statement()<CR>', { noremap = true, silent = true })
