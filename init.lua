@@ -281,7 +281,29 @@ require('lazy').setup({
   -- Then, because we use the `config` key, the configuration only runs
   -- after the plugin has been loaded:
   --  config = function() ... end
-
+  --
+  --
+  {
+    'chrisgrieser/nvim-spider',
+    keys = {
+      {
+        'w',
+        "<cmd>lua require('spider').motion('w')<CR>",
+        mode = { 'n', 'o', 'x' },
+      },
+      {
+        'e',
+        "<cmd>lua require('spider').motion('e')<CR>",
+        mode = { 'n', 'o', 'x' },
+      },
+      {
+        'b',
+        "<cmd>lua require('spider').motion('b')<CR>",
+        mode = { 'n', 'o', 'x' },
+      },
+      -- ...
+    },
+  },
   { -- Useful plugin to show you pending keybinds.
     'folke/which-key.nvim',
     event = 'VimEnter', -- Sets the loading event to 'VimEnter'
@@ -1038,7 +1060,7 @@ vim.api.nvim_set_keymap('n', '<leader>.', ':lua _G.close_buffer()<CR>', { norema
 -- Function to prompt for input and insert the print statement
 function _G.insert_print_statement()
   -- Prompt the user for input
-  local input = vim.fn.input("Enter input: ")
+  local input = vim.fn.input 'Enter input: '
 
   -- Construct the print statement with the provided input
   local print_statement = string.format('print("%s: %%\\n", %s);', input, input)
