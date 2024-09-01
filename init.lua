@@ -868,12 +868,8 @@ require('lazy').setup({
       vim.cmd.colorscheme 'solarized'
     end,
   },
-
   -- Highlight todo, notes, etc in comments
   { 'folke/todo-comments.nvim', event = 'VimEnter', dependencies = { 'nvim-lua/plenary.nvim' }, opts = { signs = false } },
-
-  { 'ThePrimeagen/vim-be-good' },
-
   { -- Collection of various small independent plugins/modules
     'echasnovski/mini.nvim',
     config = function()
@@ -957,6 +953,9 @@ require('lazy').setup({
       require('oil').setup()
     end,
   },
+  {
+    'famiu/bufdelete.nvim',
+  },
 
   -- The following two comments only work if you have downloaded the kickstart repo, not just copy pasted the
   -- init.lua. If you want these files, they are in the repository, so you can just download them and
@@ -1012,27 +1011,43 @@ vim.cmd [[
 -- The line beneath this is called `modeline`. See `:help modeline`
 -- vim: ts=2 sts=2 sw=2 et
 
-local function build_project()
-  -- The path to your Python script
-  local script_path = './build_and_run.py'
 
-  -- Execute the Python script
-  local result = vim.fn.system('python ' .. script_path)
 
-  -- Check for errors
-  if vim.v.shell_error ~= 0 then
-    vim.api.nvim_err_writeln('Build failed: ' .. result)
-  else
-    vim.api.nvim_out_write('Build successful: ' .. result .. '\n')
-  end
+local function kill_previous_build_process()
+  -- Forcefully kill any previous instances of the build.jai process
+  vim.fn.system('taskkill /IM jai.exe /F')
 end
 
--- Create a custom command that calls the build_project function
-vim.api.nvim_create_user_command('BuildProject', build_project, { nargs = 0 })
+local function jai_build_project()
+  -- Save the current buffer
+  vim.cmd('w')
+
+  -- Forcefully terminate any lingering build.jai processes
+  kill_previous_build_process()
+  
+  local debugger_command = 'raddbg --auto_run -- ../build/game.exe'
+
+  -- Convert the relative path to an absolute path
+  local game_command = vim.fn.fnamemodify('../build/game.exe', ':p')
+  game_command = game_command:gsub('/', '\\')  -- Ensure Windows-compatible paths
+
+  -- Define the combined command for build and game execution
+  local build_command = 'jai build.jai && echo Build successful! && ' .. game_command
+  -- local build_command = 'jai build.jai && echo Build successful! && ' .. debugger_command
+
+  -- Create a new buffer and switch to it
+  vim.cmd('enew') -- Open a new empty buffer
+
+  -- Run the build and game command in a terminal within this new buffer
+  vim.cmd('term ' .. build_command)
+end
+
+-- Create a custom command that calls the jai_build_project function
+vim.api.nvim_create_user_command('JaiBuildProject', jai_build_project, { nargs = 0 })
 
 -- Create a keybinding to call the custom command
 -- <leader>b will be the keybinding (default leader key is '\')
-vim.api.nvim_set_keymap('n', '<leader>b', ':BuildProject<CR>', { noremap = true, silent = true })
+vim.api.nvim_set_keymap('n', '<leader>b', ':JaiBuildProject<CR>', { noremap = true, silent = true })
 
 -- Define the custom function to execute the jai command with the current file name
 local function run_jai_with_autorun()
@@ -1050,12 +1065,7 @@ vim.api.nvim_create_user_command('JaiAutorunCurrentFile', run_jai_with_autorun, 
 
 vim.api.nvim_set_keymap('n', '<leader>j', ':JaiAutorunCurrentFile<CR>', { noremap = true, silent = true })
 
-_G.close_buffer = function()
-  local buf = vim.api.nvim_get_current_buf()
-  vim.api.nvim_buf_delete(buf, { force = true })
-end
-
-vim.api.nvim_set_keymap('n', '<leader>.', ':lua _G.close_buffer()<CR>', { noremap = true, silent = true })
+vim.api.nvim_set_keymap('n', '<leader>.', ':Bdelete<CR>', { noremap = true, silent = true })
 
 -- Function to prompt for input and insert the print statement
 function _G.insert_print_statement()
@@ -1071,3 +1081,12 @@ end
 
 -- Map the function to <leader>p
 vim.api.nvim_set_keymap('n', '<leader>p', ':lua insert_print_statement()<CR>', { noremap = true, silent = true })
+
+vim.api.nvim_create_autocmd('BufEnter', {
+  callback = function(ctx)
+    local root = vim.fs.find({ 'build.jai' }, { upward = true, path = vim.api.nvim_buf_get_name(ctx.buf) })
+    if root[1] then
+      vim.uv.chdir(vim.fs.dirname(root[1]))
+    end
+  end,
+})
