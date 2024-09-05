@@ -165,6 +165,9 @@ vim.opt.scrolloff = 10
 
 -- Set highlight on search, but clear on pressing <Esc> in normal mode
 vim.opt.hlsearch = true
+
+vim.o.sessionoptions = 'buffers,curdir,help,tabpages,winsize,localoptions'
+
 vim.keymap.set('n', '<Esc>', '<cmd>nohlsearch<CR>')
 
 -- Diagnostic keymaps
@@ -832,11 +835,13 @@ require('lazy').setup({
     'rmagatti/auto-session',
     lazy = false,
     dependencies = {
-      'nvim-telescope/telescope.nvim', -- Only needed if you want to use sesssion lens
+      'nvim-telescope/telescope.nvim', -- Only needed if you want to use session lens
     },
     config = function()
       require('auto-session').setup {
         auto_session_suppress_dirs = { '~/', '~/Projects', '~/Downloads', '/' },
+        cwd_change_handling = true,
+        -- log_level = 'debug',
       }
     end,
   },
@@ -1011,43 +1016,53 @@ vim.cmd [[
 -- The line beneath this is called `modeline`. See `:help modeline`
 -- vim: ts=2 sts=2 sw=2 et
 
-
-
 local function kill_previous_build_process()
   -- Forcefully kill any previous instances of the build.jai process
-  vim.fn.system('taskkill /IM jai.exe /F')
+  vim.fn.system 'taskkill /IM jai.exe /F'
 end
 
-local function jai_build_project()
+local function jai_build_project(debug)
   -- Save the current buffer
-  vim.cmd('w')
+  vim.cmd 'w'
 
   -- Forcefully terminate any lingering build.jai processes
   kill_previous_build_process()
-  
+
   local debugger_command = 'raddbg --auto_run -- ../build/game.exe'
 
   -- Convert the relative path to an absolute path
   local game_command = vim.fn.fnamemodify('../build/game.exe', ':p')
-  game_command = game_command:gsub('/', '\\')  -- Ensure Windows-compatible paths
+  game_command = game_command:gsub('/', '\\') -- Ensure Windows-compatible paths
 
   -- Define the combined command for build and game execution
-  local build_command = 'jai build.jai && echo Build successful! && ' .. game_command
-  -- local build_command = 'jai build.jai && echo Build successful! && ' .. debugger_command
+  local build_command = 'jai build.jai && echo Build successful! Running...&& ' .. game_command
+  if debug then
+    build_command = 'jai build.jai && echo Build successful! Running with Debug...&& ' .. debugger_command
+  end
 
   -- Create a new buffer and switch to it
-  vim.cmd('enew') -- Open a new empty buffer
+  vim.cmd 'enew' -- Open a new empty buffer
 
   -- Run the build and game command in a terminal within this new buffer
   vim.cmd('term ' .. build_command)
 end
 
+local function jai_build_project_debug()
+  jai_build_project(true)
+end
+
+local function jai_build_project_no_debug()
+  jai_build_project(false)
+end
+
 -- Create a custom command that calls the jai_build_project function
-vim.api.nvim_create_user_command('JaiBuildProject', jai_build_project, { nargs = 0 })
+vim.api.nvim_create_user_command('JaiBuildProject', jai_build_project_no_debug, { nargs = 0 })
+vim.api.nvim_create_user_command('JaiBuildProjectDebug', jai_build_project_debug, { nargs = 0 })
 
 -- Create a keybinding to call the custom command
 -- <leader>b will be the keybinding (default leader key is '\')
 vim.api.nvim_set_keymap('n', '<leader>b', ':JaiBuildProject<CR>', { noremap = true, silent = true })
+vim.api.nvim_set_keymap('n', '<leader>g', ':JaiBuildProjectDebug<CR>', { noremap = true, silent = true })
 
 -- Define the custom function to execute the jai command with the current file name
 local function run_jai_with_autorun()
