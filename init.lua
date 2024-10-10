@@ -124,6 +124,8 @@ vim.opt.tabstop = 4
 vim.opt.shiftwidth = 4
 vim.opt.expandtab = true
 
+vim.opt.wrap = false
+
 -- Save undo history
 vim.opt.undofile = true
 
@@ -1010,6 +1012,8 @@ vim.cmd [[
   augroup filetypedetect
     au! BufRead,BufNewFile *.vert set filetype=glsl
     au! BufRead,BufNewFile *.frag set filetype=glsl
+    au! BufRead,BufNewFile *.geom set filetype=glsl
+    au! BufRead,BufNewFile *.shader set filetype=glsl
   augroup END
 ]]
 
@@ -1105,3 +1109,5 @@ vim.api.nvim_create_autocmd('BufEnter', {
     end
   end,
 })
+
+vim.opt.formatoptions:remove 't'
