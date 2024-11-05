@@ -224,6 +224,10 @@ if not vim.loop.fs_stat(lazypath) then
 end ---@diagnostic disable-next-line: undefined-field
 vim.opt.rtp:prepend(lazypath)
 
+-- Determine if the system is Windows or macOS
+local sysname = vim.loop.os_uname().sysname
+local is_windows = sysname == "Windows_NT"
+
 -- [[ Configure and install plugins ]]
 --
 --  To check the current status of your plugins, run
@@ -617,11 +621,6 @@ require('lazy').setup({
         -- tsserver = {},
         --
 
-        -- jails = {
-        --   cmd = { "D:/dev/tools/jai/jails/bin/jails.exe" },
-        --   filetypes = { 'jai' },
-        -- },
-
         lua_ls = {
           -- cmd = {...},
           -- filetypes = { ...},
@@ -641,12 +640,15 @@ require('lazy').setup({
       local lspconfig = require 'lspconfig'
 
       local configs = require 'lspconfig.configs'
+
+      local jai_cmd = is_windows and { 'D:/dev/tools/jai/jails/bin/jails.exe' } or { '/Users/konsuko/dev/tools/jails/bin/jails' }
+
       if not configs.jai then
         configs.jai = {
           default_config = {
-            cmd = { 'D:/dev/tools/jai/jails/bin/jails.exe' },
+            cmd = jai_cmd,
             filetypes = { 'jai' },
-            root_dir = lspconfig.util.root_pattern '.git' or vim.loop.os_homedir(),
+            root_dir = lspconfig.util.root_pattern('.git') or vim.loop.os_homedir(),
             settings = {},
           },
         }
@@ -1020,34 +1022,42 @@ vim.cmd [[
 -- The line beneath this is called `modeline`. See `:help modeline`
 -- vim: ts=2 sts=2 sw=2 et
 
+-- Function to kill previous build process based on OS
 local function kill_previous_build_process()
-  -- Forcefully kill any previous instances of the build.jai process
-  vim.fn.system 'taskkill /IM jai.exe /F'
+  if is_windows then
+    -- Kill the jai.exe process on Windows
+    vim.fn.system('taskkill /IM jai.exe /F')
+  else
+    -- Kill the jai process on macOS
+    vim.fn.system('pkill -f jails')
+  end
 end
 
+-- Function to build and run the Jai project
 local function jai_build_project(debug)
   -- Save the current buffer
-  vim.cmd 'w'
+  vim.cmd('w')
 
-  -- Forcefully terminate any lingering build.jai processes
+  -- Kill any lingering build processes
   kill_previous_build_process()
 
-  local debugger_command = 'raddbg --auto_run -- ../build/game.exe'
+  -- Define commands for debugging and game execution
+  local debugger_command = is_windows and 'raddbg --auto_run -- ../build/game.exe' or 'raddbg --auto_run -- ../build/game'
+  local game_command = is_windows and vim.fn.fnamemodify('../build/game.exe', ':p') or vim.fn.fnamemodify('../build/game', ':p')
 
-  -- Convert the relative path to an absolute path
-  local game_command = vim.fn.fnamemodify('../build/game.exe', ':p')
-  game_command = game_command:gsub('/', '\\') -- Ensure Windows-compatible paths
-
-  -- Define the combined command for build and game execution
-  local build_command = 'jai build.jai && echo Build successful! Running...&& ' .. game_command
-  if debug then
-    build_command = 'jai build.jai && echo Build successful! Running with Debug...&& ' .. debugger_command
+  -- Ensure Windows-compatible paths if necessary
+  if is_windows then
+    game_command = game_command:gsub('/', '\\')
   end
 
-  -- Create a new buffer and switch to it
-  vim.cmd 'enew' -- Open a new empty buffer
+  -- Define the combined build and run command
+  local build_command = 'jai build.jai && echo Build successful! Running... && ' .. game_command
+  if debug then
+    build_command = 'jai build.jai && echo Build successful! Running with Debug... && ' .. debugger_command
+  end
 
-  -- Run the build and game command in a terminal within this new buffer
+  -- Open a new buffer and run the build and game command in a terminal
+  vim.cmd('enew') -- Open a new empty buffer
   vim.cmd('term ' .. build_command)
 end
 
